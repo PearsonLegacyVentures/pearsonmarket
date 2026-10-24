@@ -148,14 +148,33 @@ export default function TerminalChart({symbol,version}:{symbol:string;version:nu
     return [<g key={drawing.id}><line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={stroke} strokeWidth="2"/>{drawing.tool==="measure"&&drawing.points.length>1&&<text x={end.x+6} y={end.y-6} fill={stroke} fontSize="11">{((drawing.points[1].price/drawing.points[0].price-1)*100).toFixed(2)}%</text>}</g>];
   });
 
-  function screenshot() {
-    const image=chartRef.current?.takeScreenshot(true);
-    if(!image)return;
-    const anchor=document.createElement("a");anchor.href=image.toDataURL("image/png");anchor.download=`${symbol}-${interval}-chart.png`;anchor.click();
+  async function screenshot() {
+    const chartImage=chartRef.current?.takeScreenshot(true);
+    if(!chartImage)return;
+    const canvas=document.createElement("canvas");
+    canvas.width=chartImage.width;canvas.height=chartImage.height;
+    const context=canvas.getContext("2d");
+    if(!context)return;
+    context.drawImage(chartImage,0,0);
+    const overlay=document.querySelector(".drawing-overlay") as SVGSVGElement|null;
+    if(overlay&&drawings.length){
+      const svg=overlay.cloneNode(true) as SVGSVGElement;
+      svg.setAttribute("xmlns","http://www.w3.org/2000/svg");
+      svg.setAttribute("width",String(canvas.width));
+      svg.setAttribute("height",String(canvas.height));
+      svg.setAttribute("viewBox",`0 0 ${overlay.clientWidth} ${overlay.clientHeight}`);
+      const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)],{type:"image/svg+xml"}));
+      try{
+        const drawingImage=new Image();
+        await new Promise<void>((resolve,reject)=>{drawingImage.onload=()=>resolve();drawingImage.onerror=()=>reject(new Error("Could not render drawings"));drawingImage.src=url;});
+        context.drawImage(drawingImage,0,0,canvas.width,canvas.height);
+      }finally{URL.revokeObjectURL(url);}
+    }
+    const anchor=document.createElement("a");anchor.href=canvas.toDataURL("image/png");anchor.download=`${symbol}-${interval}-chart.png`;anchor.click();
   }
 
   return <section className="terminal-chart">
-    <div className="chart-toolbar"><div className="timeframes">{intervals.map((value) => <button key={value} className={interval===value?"on":""} onClick={() => setIntervalValue(value)}>{value}</button>)}</div><span className="toolbar-divider"/><button title="Candles or line" onClick={() => setChartType(chartType==="candle"?"line":"candle")}><ChartCandlestick size={16}/> <span>{chartType==="candle"?"Candles":"Line"}</span></button><button className={showMA?"on":""} onClick={() => setShowMA(!showMA)}>MA 7/25/99</button><button className={showVolume?"on":""} onClick={() => setShowVolume(!showVolume)}>Volume</button><span className="toolbar-spacer"/><button title="Reset chart" onClick={() => chartRef.current?.timeScale().fitContent()}><RotateCcw size={16}/></button><button title="Save chart image" onClick={screenshot}><Camera size={16}/></button></div>
+    <div className="chart-toolbar"><div className="timeframes">{intervals.map((value) => <button key={value} className={interval===value?"on":""} onClick={() => setIntervalValue(value)}>{value}</button>)}</div><span className="toolbar-divider"/><button title="Candles or line" onClick={() => setChartType(chartType==="candle"?"line":"candle")}><ChartCandlestick size={16}/> <span>{chartType==="candle"?"Candles":"Line"}</span></button><button className={showMA?"on":""} onClick={() => setShowMA(!showMA)}>MA 7/25/99</button><button className={showVolume?"on":""} onClick={() => setShowVolume(!showVolume)}>Volume</button><span className="toolbar-spacer"/><button title="Reset chart" onClick={() => chartRef.current?.timeScale().fitContent()}><RotateCcw size={16}/></button><button title="Save chart image" onClick={() => void screenshot()}><Camera size={16}/></button></div>
     <div className="chart-body"><div className="drawing-tools">
       {([{name:"cursor",icon:MousePointer2,label:"Crosshair"},{name:"trend",icon:TrendingUp,label:"Trend line"},{name:"horizontal",icon:Minus,label:"Horizontal line"},{name:"rectangle",icon:Square,label:"Rectangle"},{name:"measure",icon:PencilRuler,label:"Measure move"}] as const).map(({name,icon:Icon,label}) => <button title={label} aria-label={label} key={name} className={tool===name?"active":""} onClick={() => {setTool(name);setPending(null);}}><Icon size={19}/></button>)}
       <span className="tool-break"/><button title="Undo drawing" aria-label="Undo drawing" onClick={() => setDrawings((items)=>items.slice(0,-1))}><Undo2 size={19}/></button><button title="Clear drawings" aria-label="Clear drawings" onClick={() => setDrawings([])}><Eraser size={19}/></button></div>
