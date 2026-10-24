@@ -17,9 +17,9 @@ export async function POST(request: Request) {
       return Response.json({ error: "Enter a valid stock and order size." }, { status: 400 });
     }
     const units = side === "buy" ? Math.round(amount * 100) : Math.round(amount * 1_000_000);
-    if (!Number.isSafeInteger(units) || (side === "buy" && units < 10_000) ||
-        (side === "sell" && units < 1_000)) {
-      return Response.json({ error: "Minimum buy B$100 or sell 0.001 shares." }, { status: 400 });
+    if (!Number.isSafeInteger(units) || (side === "buy" && units < 1_000) ||
+        (side === "sell" && units < 1)) {
+      return Response.json({ error: "Minimum buy US$10; shares must be positive." }, { status: 400 });
     }
     await ensureGame(user.userId, user.displayName);
     const market = await findMarket(symbol);

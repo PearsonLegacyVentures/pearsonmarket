@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { companies, eventTemplates, FEE_RATE, reserveCents, STARTING_CASH_CENTS, TICK_MS } from "./market-data";
+import { quote, type Side } from "./amm-math";
 import { getPositions, markPosition, type PositionRow } from "./perps";
 
 export type MarketRow = {
@@ -10,7 +11,6 @@ export type MarketRow = {
 
 type PlayerRow = { user_id: string; name: string; cash_cents: number; is_bot: number };
 type HoldingRow = { user_id: string; symbol: string; shares_micros: number };
-type Side = "buy" | "sell";
 
 export function database(): D1Database {
   if (!env.DB) throw new Error("Game database is not available.");
@@ -24,30 +24,6 @@ export function spotCents(market: MarketRow) {
 function liquidationValue(market: MarketRow, sharesMicros: number) {
   const gross = Math.floor(market.cash_cents * sharesMicros / (market.shares_micros + sharesMicros));
   return Math.floor(gross * (1 - FEE_RATE));
-}
-
-export function quote(market: MarketRow, side: Side, units: number) {
-  if (!Number.isSafeInteger(units) || units <= 0) throw new Error("Enter a positive order size.");
-  if (side === "buy") {
-    const spent = units;
-    const effective = Math.floor(spent * (1 - FEE_RATE));
-    const shares = Math.floor(market.shares_micros * effective / (market.cash_cents + effective));
-    if (shares < 1_000) throw new Error("Order is too small.");
-    const cash = market.cash_cents + effective;
-    const inventory = market.shares_micros - shares;
-    if (inventory <= 0) throw new Error("Insufficient pool inventory.");
-    return { cashCents: spent, sharesMicros: shares, poolCashCents: cash, poolSharesMicros: inventory,
-      afterCents: Math.round(cash * 1_000_000 / inventory) };
-  }
-
-  const shares = units;
-  const gross = Math.floor(market.cash_cents * shares / (market.shares_micros + shares));
-  const paid = Math.floor(gross * (1 - FEE_RATE));
-  if (paid <= 0) throw new Error("Order is too small.");
-  const cash = market.cash_cents - gross;
-  const inventory = market.shares_micros + shares;
-  return { cashCents: paid, sharesMicros: shares, poolCashCents: cash, poolSharesMicros: inventory,
-    afterCents: Math.round(cash * 1_000_000 / inventory) };
 }
 
 const guardSql = "INSERT INTO trade_guard (id, ok) VALUES (1, changes()) ON CONFLICT(id) DO UPDATE SET ok = excluded.ok";

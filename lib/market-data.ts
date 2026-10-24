@@ -1,4 +1,4 @@
-export const STARTING_CASH_CENTS = 10_000_000; // B$100,000 per player
+export const STARTING_CASH_CENTS = 100_000; // US$1,000 in virtual cash per player
 export const FEE_RATE = 0.0025;
 export const TICK_MS = 40_000;
 
@@ -29,9 +29,9 @@ export const companies = [
 
 export type Tier = "large" | "mid" | "small";
 export const reserveCents: Record<Tier, number> = {
-  large: 200_000_000, // B$2m quote side
-  mid: 100_000_000,   // B$1m quote side
-  small: 50_000_000,  // B$500k quote side
+  large: 200_000_000, // US$2m quote side
+  mid: 100_000_000,   // US$1m quote side
+  small: 50_000_000,  // US$500k quote side
 };
 
 export const eventTemplates: Record<string, { up: string[]; down: string[] }> = {

@@ -6,8 +6,9 @@ A fictional Bahamian trading game. Twenty invented companies share one market. H
 
 ## Playable features
 
-- One shared D1-backed market, B$100,000 starting virtual cash per player, and 20 fictional listings.
-- AMM cash reserves: B$2m large stocks, B$1m middle stocks, B$500k small stocks. A 0.25% fee applies to spot orders. Liquidity is fixed at game launch and does not shrink with player count.
+- One shared D1-backed market, US$1,000 starting virtual cash per player, and 20 fictional listings.
+- Spot pairs trade as `SYMBOL/USD`: buy with virtual USD to receive fractional stock units in your wallet; sell those units into the same pair to recover virtual USD. A US$10 minimum applies to buys. No direct cash-out button or automatic conversion.
+- AMM cash reserves: US$2m large stocks, US$1m middle stocks, US$500k small stocks. A 0.25% fee applies to spot swaps. Liquidity is fixed at game launch and does not shrink with player count.
 - A dense trading terminal with a ticker strip, watchlist, order ticket, trade tape, market news, positions, and liquidation-value leaderboard.
 - [TradingView Lightweight Charts](https://tradingview.github.io/lightweight-charts/) candlesticks, volume, MA 7/25/99, timeframes, crosshair, trend lines, horizontal lines, rectangles, move measurements and chart images. Drawings are stored in that browser.
 - Fictional preseason history followed by actual in-game trades. No real exchange feed is used.
@@ -17,6 +18,8 @@ A fictional Bahamian trading game. Twenty invented companies share one market. H
 ## Game rules worth understanding
 
 The score estimates each spot holding by actually selling it into the current AMM pool, then adds available cash and the estimated net exit value of open futures positions. At the end of a season, a settlement routine and ranking freeze still need to be added. There is currently no funding rate, limit-order book, cross margin, teacher admin panel, or scheduled bot activity while every player is offline. The limit-order and stop-loss controls from commercial futures terminals are deliberately absent until they have real execution logic.
+
+The US$1,000 rule also updates untouched accounts that were created under the old US$100,000 setting. Accounts with any trades or positions keep their history; restarting those would require an explicit new season.
 
 The market game is intentionally manipulable through legitimate virtual trades. A player can pump a thin stock, coordinate with others, or exploit an event. Account balances, order validation and settlement stay server-side; stale market versions cause an entire database batch to roll back.
 

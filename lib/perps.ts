@@ -13,7 +13,7 @@ const guard = "INSERT INTO trade_guard (id,ok) VALUES (1,changes()) ON CONFLICT(
 
 export async function openPosition(userId: string, market: MarketRow, side: "LONG" | "SHORT",
   marginCents: number, leverage: number) {
-  if (!Number.isSafeInteger(marginCents) || marginCents < 10_000) throw new Error("Minimum margin is B$100.");
+  if (!Number.isSafeInteger(marginCents) || marginCents < 10_000) throw new Error("Minimum margin is US$100.");
   if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > 10) throw new Error("Leverage must be 1–10×.");
   const notionalCents = marginCents * leverage;
   if (!Number.isSafeInteger(notionalCents)) throw new Error("Position is too large.");
@@ -23,7 +23,7 @@ export async function openPosition(userId: string, market: MarketRow, side: "LON
   if (quantityMicros < 1_000) throw new Error("Position is too small.");
   const database = db();
   const player = await database.prepare("SELECT cash_cents FROM players WHERE user_id=?").bind(userId).first<{cash_cents:number}>();
-  if (!player || player.cash_cents < walletCost) throw new Error(`You need B$${(walletCost / 100).toFixed(2)} available for margin and fee.`);
+  if (!player || player.cash_cents < walletCost) throw new Error(`You need US$${(walletCost / 100).toFixed(2)} available for margin and fee.`);
   try {
     const results = await database.batch([
       database.prepare("UPDATE players SET cash_cents=cash_cents-? WHERE user_id=? AND cash_cents>=?").bind(walletCost,userId,walletCost),
@@ -71,7 +71,7 @@ export async function closePosition(userId: string, id: number) {
 }
 
 export async function addMargin(userId: string, id: number, amountCents: number) {
-  if (!Number.isSafeInteger(amountCents) || amountCents < 1_000) throw new Error("Minimum addition is B$10.");
+  if (!Number.isSafeInteger(amountCents) || amountCents < 1_000) throw new Error("Minimum addition is US$10.");
   const database = db();
   try {
     await database.batch([
