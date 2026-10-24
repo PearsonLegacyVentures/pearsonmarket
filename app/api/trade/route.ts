@@ -1,12 +1,12 @@
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { getGameUser } from "../../../lib/game-auth";
 import { ensureGame, executeTrade, findMarket } from "../../../lib/market-engine";
 import { settleLiquidations } from "../../../lib/perps";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "Sign in to play." }, { status: 401 });
+  const user = await getGameUser();
+  if (!user) return Response.json({ error: "Join the market to play." }, { status: 401 });
   try {
     const payload = (await request.json()) as { symbol?: unknown; side?: unknown; amount?: unknown };
     const symbol = String(payload.symbol ?? "").toUpperCase();

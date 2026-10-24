@@ -1,12 +1,12 @@
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { getGameUser } from "../../../lib/game-auth";
 import { ensureGame, findMarket } from "../../../lib/market-engine";
 import { addMargin, closePosition, openPosition, settleLiquidations } from "../../../lib/perps";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "Sign in to trade." }, { status: 401 });
+  const user = await getGameUser();
+  if (!user) return Response.json({ error: "Join the market to trade." }, { status: 401 });
   try {
     const body = await request.json() as { action?: unknown; symbol?: unknown; side?: unknown;
       margin?: unknown; leverage?: unknown; id?: unknown; amount?: unknown };

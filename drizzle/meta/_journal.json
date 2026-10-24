@@ -29,6 +29,13 @@
       "when": 1792863675260,
       "tag": "0003_canonical-minute-candles",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792864234681,
+      "tag": "0004_guest-sessions",
+      "breakpoints": true
     }
   ]
 }

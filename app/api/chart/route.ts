@@ -1,4 +1,4 @@
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { getGameUser } from "../../../lib/game-auth";
 import { ensureGame } from "../../../lib/market-engine";
 import { chartData } from "../../../lib/chart-data";
 import { PERIOD_SECONDS, type Interval } from "../../../lib/chart-series";
@@ -6,8 +6,8 @@ import { PERIOD_SECONDS, type Interval } from "../../../lib/chart-series";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "Sign in to view charts." }, { status: 401 });
+  const user = await getGameUser();
+  if (!user) return Response.json({ error: "Join the market to view charts." }, { status: 401 });
   const url = new URL(request.url);
   const symbol = (url.searchParams.get("symbol") ?? "").toUpperCase();
   const interval = url.searchParams.get("interval") ?? "5m";

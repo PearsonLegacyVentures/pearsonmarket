@@ -27,13 +27,24 @@ The market game is intentionally manipulable through legitimate virtual trades. 
 
 Vinext (React/Next-compatible), TypeScript, Cloudflare Workers/D1, Drizzle migrations and TradingView Lightweight Charts. The `.openai/hosting.json` file binds the `DB` D1 resource to the private Site used for this prototype.
 
+## Deploying on Cloudflare
+
+**Use Cloudflare Workers with D1, not a static Cloudflare Pages deployment.** This game renders on the server and uses API routes, a shared database and player sessions. Uploading `dist/` or `dist/client/` as a Pages site cannot run the game. The existing private Sites preview is a separate host and database.
+
+1. In your Cloudflare account, create a D1 database named `pearson-market` and copy its database UUID. For example, run `pnpm wrangler d1 create pearson-market` after logging into Wrangler.
+2. Connect this GitHub repository to **Workers Builds**. Set the Worker name to `pearson-market` (or set `PEARSON_WORKER_NAME` to the name of an existing Worker), Node.js 22.13 or newer, the build command to `pnpm run build:cloudflare`, and the deploy command to `pnpm run deploy:cloudflare`.
+3. Add build variable `PEARSON_D1_DATABASE_ID` with the D1 UUID. The build refuses the private Site's placeholder UUID. The deploy command applies all pending migrations to **that** D1 database before publishing the Worker.
+4. Test the resulting `workers.dev` URL before moving a custom domain. The Worker gives each browser a guest wallet with US$1,000 virtual cash; it never trusts ChatGPT identity headers sent by visitors. The private Sites preview continues to use its own ChatGPT sign-in and D1 data.
+
+Guest wallets are tied to an HTTP-only cookie for 120 days. Clearing it or using another browser creates a fresh wallet. For a graded classroom season, add roster-backed accounts and a season reset before inviting students.
+
 ```bash
 pnpm install
 pnpm db:generate   # only after schema changes
 pnpm build
 ```
 
-For a local D1 preview, apply pending SQL in `drizzle/` to the local database using the generated `dist/server/wrangler.json`, then run `pnpm start`. The private hosted Site provides ChatGPT sign-in headers; local requests need an equivalent development identity, so do not expose a local preview to the public internet. Production migrations are applied by the Sites deployment workflow.
+For local Worker testing, build with `PEARSON_D1_DATABASE_ID` set to a disposable UUID, run `wrangler d1 migrations apply DB --local --config dist/server/wrangler.json`, then `wrangler dev --config dist/server/wrangler.json --local`. Production migrations use `--remote` through the deploy command. Keep local and production D1 data separate.
 
 Important code paths:
 
@@ -44,5 +55,7 @@ Important code paths:
 - `lib/chart-series.ts`: UTC bucket rules and consistent OHLCV aggregation
 - `app/game.tsx`: terminal and order tickets
 - `app/terminal-chart.tsx`: interactive chart and drawing tools
+- `lib/game-auth.ts`, `app/api/join/route.ts`: standalone Worker guest sessions
+- `scripts/prepare-cloudflare.mjs`, `scripts/deploy-cloudflare.mjs`: direct Workers build and deploy
 
 The GitHub repository is the source of truth. The private Site uses a separate deployment repository; changes from GitHub must be synchronized and published through the Sites workflow.

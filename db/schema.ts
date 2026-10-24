@@ -21,6 +21,15 @@ export const players = sqliteTable("players", {
   isBot: integer("is_bot").notNull().default(0),
 });
 
+// Standalone Cloudflare Workers issue opaque, browser-bound game sessions.
+export const guestSessions = sqliteTable("guest_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull(),
+  displayName: text("display_name").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
 export const holdings = sqliteTable("holdings", {
   userId: text("user_id").notNull(),
   symbol: text("symbol").notNull(),
