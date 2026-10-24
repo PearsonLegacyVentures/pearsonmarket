@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries,
   type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { Camera, ChartCandlestick, Eraser, Maximize2, Minus, MousePointer2, PencilRuler, RotateCcw, Square, TrendingUp, Undo2 } from "lucide-react";
+import { bucketTime, type Interval } from "../lib/chart-series";
 
 export type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type Tool = "cursor" | "trend" | "horizontal" | "rectangle" | "measure";
 type Point = { time: number; price: number };
 type Drawing = { id: number; tool: Exclude<Tool,"cursor">; points: Point[] };
-const intervals = ["1m","5m","15m","1h","4h","1d"];
+const intervals = ["1m","5m","15m","30m","1h","4h","1d","1w"];
 
 function movingAverage(candles: Candle[], window: number) {
   let sum = 0;
@@ -130,14 +131,17 @@ export default function TerminalChart({symbol,version}:{symbol:string;version:nu
     volumeRef.current?.applyOptions({visible:showVolume});
     maRefs.current.forEach((series) => series.applyOptions({visible:showMA}));
   },[chartType,showVolume,showMA]);
+  useEffect(() => {
+    chartRef.current?.applyOptions({timeScale:{timeVisible:interval!=="1d"&&interval!=="1w"}});
+  },[interval]);
 
   const coords = useCallback((point:Point) => {
     const chart=chartRef.current,series=candleRef.current;
     if(!chart||!series)return null;
-    const x=chart.timeScale().timeToCoordinate(point.time as UTCTimestamp);
+    const x=chart.timeScale().timeToCoordinate(bucketTime(point.time,interval as Interval) as UTCTimestamp);
     const y=series.priceToCoordinate(point.price);
     return x===null||y===null?null:{x,y};
-  },[]);
+  },[interval]);
   void geometry;
   const graphics = [...drawings,...(pending ? [{id:-1,tool:tool==="cursor"?"trend":tool,points:[pending,pending]} as Drawing] : [])].flatMap((drawing) => {
     const start=coords(drawing.points[0]);if(!start)return [];

@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { companies, eventTemplates, FEE_RATE, reserveCents, STARTING_CASH_CENTS, TICK_MS } from "./market-data";
 import { quote, type Side } from "./amm-math";
+import { UPSERT_MINUTE_CANDLE } from "./chart-sql";
 import { getPositions, markPosition, type PositionRow } from "./perps";
 
 export type MarketRow = {
@@ -62,6 +63,8 @@ export async function executeTrade(userId: string, market: MarketRow, side: Side
   options?: { clockLastTick?: number; headline?: string; direction?: string }) {
   const db = database();
   const trade = quote(market, side, units);
+  const tradeAt = Date.now();
+  const minute = Math.floor(tradeAt / 60_000) * 60;
   const player = await db.prepare("SELECT cash_cents FROM players WHERE user_id=?").bind(userId).first<{ cash_cents: number }>();
   if (!player) throw new Error("Player account not found.");
   if (side === "buy" && player.cash_cents < trade.cashCents) throw new Error("Not enough cash for that order.");
@@ -74,7 +77,7 @@ export async function executeTrade(userId: string, market: MarketRow, side: Side
   const statements: D1PreparedStatement[] = [];
   if (options?.clockLastTick !== undefined) {
     statements.push(db.prepare("UPDATE game_clock SET last_tick=? WHERE id=1 AND last_tick=?")
-      .bind(Date.now(), options.clockLastTick));
+      .bind(tradeAt, options.clockLastTick));
     statements.push(db.prepare(guardSql));
   }
   statements.push(db.prepare("UPDATE markets SET cash_cents=?, shares_micros=?, last_price_cents=?, version=version+1 WHERE symbol=? AND version=?")
@@ -97,10 +100,14 @@ export async function executeTrade(userId: string, market: MarketRow, side: Side
   }
   statements.push(db.prepare(guardSql));
   statements.push(db.prepare("INSERT INTO trades (user_id,symbol,side,shares_micros,cash_cents,price_after_cents,created_at) VALUES (?,?,?,?,?,?,?)")
-    .bind(userId, market.symbol, side, trade.sharesMicros, trade.cashCents, trade.afterCents, Date.now()));
+    .bind(userId, market.symbol, side, trade.sharesMicros, trade.cashCents, trade.afterCents, tradeAt));
+  statements.push(db.prepare(UPSERT_MINUTE_CANDLE)
+    .bind(market.symbol,minute,market.last_price_cents,
+      Math.max(market.last_price_cents,trade.afterCents),Math.min(market.last_price_cents,trade.afterCents),
+      trade.afterCents,trade.sharesMicros));
   if (options?.headline) {
     statements.push(db.prepare("INSERT INTO news (symbol,headline,direction,created_at) VALUES (?,?,?,?)")
-      .bind(market.symbol, options.headline, options.direction ?? "neutral", Date.now()));
+      .bind(market.symbol, options.headline, options.direction ?? "neutral", tradeAt));
   }
   try {
     await db.batch(statements);

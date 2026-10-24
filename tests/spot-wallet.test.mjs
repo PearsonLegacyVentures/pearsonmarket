@@ -12,6 +12,7 @@ test("US$1,000 buys fractional shares; selling the entire balance returns USD wi
   const wallet = { usdCents: STARTING_CASH_CENTS - buy.cashCents, sharesMicros: buy.sharesMicros };
   assert.equal(wallet.usdCents, 75_000);
   assert.ok(wallet.sharesMicros > 0);
+  assert.notEqual(wallet.sharesMicros % 1_000_000, 0); // fractional stock units are normal
   const sell = quote({ cash_cents: buy.poolCashCents, shares_micros: buy.poolSharesMicros }, "sell", wallet.sharesMicros);
   wallet.usdCents += sell.cashCents;
   wallet.sharesMicros -= sell.sharesMicros;

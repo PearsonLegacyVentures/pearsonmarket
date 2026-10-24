@@ -10,8 +10,8 @@ A fictional Bahamian trading game. Twenty invented companies share one market. H
 - Spot pairs trade as `SYMBOL/USD`: buy with virtual USD to receive fractional stock units in your wallet; sell those units into the same pair to recover virtual USD. A US$10 minimum applies to buys. No direct cash-out button or automatic conversion.
 - AMM cash reserves: US$2m large stocks, US$1m middle stocks, US$500k small stocks. A 0.25% fee applies to spot swaps. Liquidity is fixed at game launch and does not shrink with player count.
 - A dense trading terminal with a ticker strip, watchlist, order ticket, trade tape, market news, positions, and liquidation-value leaderboard.
-- [TradingView Lightweight Charts](https://tradingview.github.io/lightweight-charts/) candlesticks, volume, MA 7/25/99, timeframes, crosshair, trend lines, horizontal lines, rectangles, move measurements and chart images. Drawings are stored in that browser.
-- Fictional preseason history followed by actual in-game trades. No real exchange feed is used.
+- [TradingView Lightweight Charts](https://tradingview.github.io/lightweight-charts/) candlesticks, volume, MA 7/25/99, aligned 1m/5m/15m/30m/1h/4h/1d/1w timeframes, crosshair, trend lines, horizontal lines, rectangles, move measurements and chart images. Drawings are stored in that browser.
+- One deterministic fictional 5-minute backstory spans 14 weeks. Its last two days are subdivided into true 1-minute candles with the same parent OHLCV. Live executed trades write one-minute OHLCV in the trade transaction. Larger candles aggregate those minutes; quiet intervals carry the last close with zero volume. Days open at 00:00 UTC and weeks at Monday 00:00 UTC. No real exchange feed is used.
 - Isolated futures: market long/short entry, margin additions, close, P&L, approximate liquidation price, and automatic liquidation. Entry and exit fees are 0.05% of notional; maintenance margin is 1% of current notional. Opening a future does **not** move the spot AMM. Its mark price follows that shared spot pool.
 - Fictional news prompts finite-budget bot orders while at least one player has the game open. News never resets prices.
 
@@ -41,6 +41,7 @@ Important code paths:
 - `lib/market-engine.ts`: AMM, trades, bot events, shared game state
 - `lib/perps.ts`: leverage, margin, P&L and liquidation
 - `lib/chart-data.ts`: chart history and trade aggregation
+- `lib/chart-series.ts`: UTC bucket rules and consistent OHLCV aggregation
 - `app/game.tsx`: terminal and order tickets
 - `app/terminal-chart.tsx`: interactive chart and drawing tools
 

@@ -38,6 +38,18 @@ export const trades = sqliteTable("trades", {
   createdAt: integer("created_at").notNull(),
 });
 
+// Executed trades are folded into one-minute candles in the same transaction.
+// Higher timeframes derive from these canonical minute candles.
+export const marketCandles1m = sqliteTable("market_candles_1m", {
+  symbol: text("symbol").notNull(),
+  minute: integer("minute").notNull(),
+  openCents: integer("open_cents").notNull(),
+  highCents: integer("high_cents").notNull(),
+  lowCents: integer("low_cents").notNull(),
+  closeCents: integer("close_cents").notNull(),
+  volumeMicros: integer("volume_micros").notNull(),
+}, (t) => [primaryKey({ columns: [t.symbol,t.minute] })]);
+
 export const news = sqliteTable("news", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   symbol: text("symbol").notNull(),
