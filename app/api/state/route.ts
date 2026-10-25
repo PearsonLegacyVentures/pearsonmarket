@@ -1,6 +1,6 @@
 import { getGameUser } from "../../../lib/game-auth";
 import { ensureGame, getState, maybeTick } from "../../../lib/market-engine";
-import { settleLiquidations } from "../../../lib/perps";
+import { settlePositionExits } from "../../../lib/perps";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export async function GET() {
   try {
     await ensureGame(user.userId, user.displayName);
     await maybeTick();
-    await settleLiquidations();
+    await settlePositionExits();
     return Response.json(await getState(user.userId), {
       headers: { "Cache-Control": "no-store" },
     });

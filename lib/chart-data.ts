@@ -2,14 +2,15 @@ import { env } from "cloudflare:workers";
 import { aggregate, BAR_LIMIT, bucketTime, joinAndFill, minuteBackstory,
   PERIOD_SECONDS, preseasonFiveMinute, type Bar, type Interval } from "./chart-series";
 import { liveBucketsSql } from "./chart-sql";
+import { reserveCents, type Tier } from "./market-data";
 
 const historicalCache=new Map<string,Bar[]>();
 
-function preseason(symbol:string,openingCents:number,startedAt:number) {
-  const key=`${symbol}:${openingCents}:${startedAt}`;
+function preseason(symbol:string,openingCents:number,startedAt:number,poolCashCents:number) {
+  const key=`${symbol}:${openingCents}:${startedAt}:${poolCashCents}`;
   let bars=historicalCache.get(key);
   if(!bars){
-    bars=preseasonFiveMinute(symbol,openingCents,startedAt);
+    bars=preseasonFiveMinute(symbol,openingCents,startedAt,poolCashCents);
     if(historicalCache.size>=2)historicalCache.delete(historicalCache.keys().next().value!);
     historicalCache.set(key,bars);
   }
@@ -23,8 +24,8 @@ export async function chartData(symbol:string,interval:Interval) {
   if(!env.DB)throw new Error("Database unavailable");
   const db=env.DB;
   const [market,clock]=await Promise.all([
-    db.prepare("SELECT opening_price_cents,last_price_cents FROM markets WHERE symbol=?").bind(symbol)
-      .first<{opening_price_cents:number;last_price_cents:number}>(),
+    db.prepare("SELECT opening_price_cents,last_price_cents,tier FROM markets WHERE symbol=?").bind(symbol)
+      .first<{opening_price_cents:number;last_price_cents:number;tier:Tier}>(),
     db.prepare("SELECT started_at FROM game_clock WHERE id=1").first<{started_at:number}>(),
   ]);
   if(!market||!clock)throw new Error("Market unavailable");
@@ -41,11 +42,11 @@ export async function chartData(symbol:string,interval:Interval) {
   const live=rows.results.map((row)=>({time:row.time,open:row.open_cents/100,
     high:row.high_cents/100,low:row.low_cents/100,close:row.close_cents/100,
     volume:row.volume_micros/1_000_000}));
-  const base=preseason(symbol,market.opening_price_cents,clock.started_at);
+  const base=preseason(symbol,market.opening_price_cents,clock.started_at,reserveCents[market.tier]);
   const historical=interval==="1m"
     ? minuteBackstory(symbol,base,requestedStart)
     : base.filter((bar)=>bar.time>=requestedStart-PERIOD_SECONDS[interval]);
   const bars=joinAndFill(aggregate(historical,interval),live,interval,nowSeconds,
     market.last_price_cents/100,prior?.close_cents===undefined?undefined:prior.close_cents/100);
-  return {bars,source:"Fictional pregame candles · executed trades · UTC, Monday weekly open"};
+  return {bars,source:"Pregame simulated trades · live executed trades · quiet candles have zero volume"};
 }

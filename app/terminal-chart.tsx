@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries,
-  type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
+import { CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle,
+  type IChartApi, type IPriceLine, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { Camera, ChartCandlestick, Eraser, Maximize2, Minus, MousePointer2, PencilRuler, RotateCcw, Square, TrendingUp, Undo2 } from "lucide-react";
 import { bucketTime, type Interval } from "../lib/chart-series";
+import { markPosition, type PositionRow } from "../lib/perp-math";
 
 export type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type Tool = "cursor" | "trend" | "horizontal" | "rectangle" | "measure";
@@ -21,7 +22,8 @@ function movingAverage(candles: Candle[], window: number) {
   });
 }
 
-export default function TerminalChart({symbol,version}:{symbol:string;version:number}) {
+export default function TerminalChart({symbol,version,markPriceCents,positions}:{
+  symbol:string;version:number;markPriceCents:number;positions:PositionRow[]}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi|null>(null);
   const candleRef = useRef<ISeriesApi<"Candlestick">|null>(null);
@@ -42,6 +44,7 @@ export default function TerminalChart({symbol,version}:{symbol:string;version:nu
   const [geometry,setGeometry] = useState(0);
   const [showMA,setShowMA] = useState(true);
   const [showVolume,setShowVolume] = useState(true);
+  const [showLevels,setShowLevels] = useState(true);
   const [chartType,setChartType] = useState<"candle"|"line">("candle");
   const [source,setSource] = useState("");
   const [chartError,setChartError] = useState("");
@@ -135,6 +138,27 @@ export default function TerminalChart({symbol,version}:{symbol:string;version:nu
     chartRef.current?.applyOptions({timeScale:{timeVisible:interval!=="1d"&&interval!=="1w"}});
   },[interval]);
 
+  useEffect(() => {
+    const series=chartType==="candle"?candleRef.current:lineRef.current;
+    if(!series||!showLevels)return;
+    const lines:IPriceLine[]=[];
+    for(const position of positions){
+      if(position.symbol!==symbol)continue;
+      const levels=[
+        {price:position.entry_price_cents,color:"#77aef4",title:`#${position.id} ENTRY`,lineStyle:LineStyle.Dashed},
+        {price:markPosition(position,markPriceCents).approximateLiqPriceCents,color:"#ff7180",title:`#${position.id} LIQ EST`,lineStyle:LineStyle.Dotted},
+        ...(position.take_profit_cents===null?[]:[{price:position.take_profit_cents,color:"#61dda8",title:`#${position.id} TP`,lineStyle:LineStyle.Dashed}]),
+        ...(position.stop_loss_cents===null?[]:[{price:position.stop_loss_cents,color:"#e6be78",title:`#${position.id} SL`,lineStyle:LineStyle.Dashed}]),
+      ];
+      for(const level of levels){
+        if(level.price<=0)continue;
+        lines.push(series.createPriceLine({price:level.price/100,color:level.color,title:level.title,
+          lineWidth:1,lineStyle:level.lineStyle,axisLabelVisible:true,lineVisible:true}));
+      }
+    }
+    return () => {for(const line of lines)series.removePriceLine(line);};
+  },[symbol,positions,markPriceCents,chartType,showLevels]);
+
   const coords = useCallback((point:Point) => {
     const chart=chartRef.current,series=candleRef.current;
     if(!chart||!series)return null;
@@ -178,7 +202,7 @@ export default function TerminalChart({symbol,version}:{symbol:string;version:nu
   }
 
   return <section className="terminal-chart">
-    <div className="chart-toolbar"><div className="timeframes">{intervals.map((value) => <button key={value} className={interval===value?"on":""} onClick={() => setIntervalValue(value)}>{value}</button>)}</div><span className="toolbar-divider"/><button title="Candles or line" onClick={() => setChartType(chartType==="candle"?"line":"candle")}><ChartCandlestick size={16}/> <span>{chartType==="candle"?"Candles":"Line"}</span></button><button className={showMA?"on":""} onClick={() => setShowMA(!showMA)}>MA 7/25/99</button><button className={showVolume?"on":""} onClick={() => setShowVolume(!showVolume)}>Volume</button><span className="toolbar-spacer"/><button title="Reset chart" onClick={() => chartRef.current?.timeScale().fitContent()}><RotateCcw size={16}/></button><button title="Save chart image" onClick={() => void screenshot()}><Camera size={16}/></button></div>
+    <div className="chart-toolbar"><div className="timeframes">{intervals.map((value) => <button key={value} className={interval===value?"on":""} onClick={() => setIntervalValue(value)}>{value}</button>)}</div><span className="toolbar-divider"/><button title="Candles or line" onClick={() => setChartType(chartType==="candle"?"line":"candle")}><ChartCandlestick size={16}/> <span>{chartType==="candle"?"Candles":"Line"}</span></button><button className={showMA?"on":""} onClick={() => setShowMA(!showMA)}>MA 7/25/99</button><button className={showVolume?"on":""} onClick={() => setShowVolume(!showVolume)}>Volume</button><button className={showLevels?"on":""} onClick={() => setShowLevels(!showLevels)} title="Show entry, liquidation, take profit and stop loss levels">Positions ({positions.length})</button><span className="toolbar-spacer"/><button title="Reset chart" onClick={() => chartRef.current?.timeScale().fitContent()}><RotateCcw size={16}/></button><button title="Save chart image" onClick={() => void screenshot()}><Camera size={16}/></button></div>
     <div className="chart-body"><div className="drawing-tools">
       {([{name:"cursor",icon:MousePointer2,label:"Crosshair"},{name:"trend",icon:TrendingUp,label:"Trend line"},{name:"horizontal",icon:Minus,label:"Horizontal line"},{name:"rectangle",icon:Square,label:"Rectangle"},{name:"measure",icon:PencilRuler,label:"Measure move"}] as const).map(({name,icon:Icon,label}) => <button title={label} aria-label={label} key={name} className={tool===name?"active":""} onClick={() => {setTool(name);setPending(null);}}><Icon size={19}/></button>)}
       <span className="tool-break"/><button title="Undo drawing" aria-label="Undo drawing" onClick={() => setDrawings((items)=>items.slice(0,-1))}><Undo2 size={19}/></button><button title="Clear drawings" aria-label="Clear drawings" onClick={() => setDrawings([])}><Eraser size={19}/></button></div>

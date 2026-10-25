@@ -34,6 +34,15 @@ export const reserveCents: Record<Tier, number> = {
   small: 50_000_000,  // US$500k quote side
 };
 
+// Routine bot orders provide modest executed volume. Only labeled news events
+// carry larger size, scaled to each pool's depth so small stocks do not jump
+// from the same cash ticket as a large stock.
+export function botTicketCents(poolCashCents:number, event:boolean, roll:number) {
+  return event
+    ? Math.floor(poolCashCents*(.0025+roll*.0025))
+    : 5_000+Math.floor(roll*25_000);
+}
+
 export const eventTemplates: Record<string, { up: string[]; down: string[] }> = {
   Banking: { up: ["Loan arrears ease as households catch up on payments", "New business lending outpaces forecasts"], down: ["Higher rates spark worries over loan repayments", "Banking regulator calls for larger loss provisions"] },
   Insurance: { up: ["Renewals climb after a quiet claims quarter", "Reinsurance terms improve ahead of renewal season"], down: ["Storm forecast raises expected claims", "Claims costs rise after a rough weather week"] },

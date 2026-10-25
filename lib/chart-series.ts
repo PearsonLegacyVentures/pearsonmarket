@@ -37,22 +37,41 @@ function random(seed:number) {
 
 // The fictional backstory is one deterministic 5-minute series for all views.
 // One-minute backstory subdivides its most recent bars, preserving each parent's OHLCV.
-export function preseasonFiveMinute(symbol:string, openingCents:number, startedAtMs:number):Bar[] {
+export function preseasonFiveMinute(symbol:string, openingCents:number, startedAtMs:number,
+  poolCashCents=200_000_000):Bar[] {
   const rand=random(hash(symbol));
   const count=HISTORY_DAYS*24*12;
   const ending=Math.floor(startedAtMs/300_000)*FIVE_MINUTES-FIVE_MINUTES;
-  let price=openingCents/100*(0.9+rand()*0.2);
+  // Pregame history uses the same constant-product liquidity concept as live
+  // spot trades. Its fictional participants create every price move and every
+  // unit of volume. A quiet interval has no wick or invented price motion.
+  let cash=poolCashCents/100;
+  let shares=cash/(openingCents/100);
   const result:Bar[]=[];
   for(let i=0;i<count;i++){
-    const open=price;
-    price=Math.max(.05,open*Math.exp((rand()-.5)*.0024));
-    const excursion=open*(.0001+rand()*.0012);
-    result.push({time:ending-(count-i-1)*FIVE_MINUTES,open,
-      high:Math.max(open,price)+excursion*rand(),
-      low:Math.max(.01,Math.min(open,price)-excursion*rand()),
-      close:price,volume:50+rand()*5000});
+    const open=cash/shares;
+    let high=open,low=open,volume=0;
+    const countTrades=rand()<.12?0:1+Math.floor(rand()*3);
+    for(let j=0;j<countTrades;j++){
+      const notional=rand()<.003?750+rand()*2250:30+rand()*270;
+      const oldShares=shares;
+      const invariant=cash*shares;
+      if(rand()<.5){
+        cash+=notional;
+        shares=invariant/cash;
+      }else{
+        shares+=notional/(cash/shares);
+        cash=invariant/shares;
+      }
+      volume+=Math.abs(shares-oldShares);
+      const price=cash/shares;
+      high=Math.max(high,price);
+      low=Math.min(low,price);
+    }
+    result.push({time:ending-(count-i-1)*FIVE_MINUTES,open,high,low,
+      close:cash/shares,volume});
   }
-  const factor=openingCents/100/price;
+  const factor=openingCents/100/(cash/shares);
   return result.map((bar)=>({...bar,open:bar.open*factor,high:bar.high*factor,
     low:bar.low*factor,close:bar.close*factor}));
 }

@@ -5,11 +5,25 @@ import { DatabaseSync } from "node:sqlite";
 import { aggregate, bucketTime, joinAndFill, minuteBackstory, preseasonFiveMinute,
   PERIOD_SECONDS } from "../lib/chart-series.ts";
 import { liveBucketsSql, UPSERT_MINUTE_CANDLE } from "../lib/chart-sql.ts";
+import { botTicketCents } from "../lib/market-data.ts";
 
 const start=Date.parse("2026-10-24T17:21:17Z");
 const base=preseasonFiveMinute("PML",1790,start);
 const recent=base.slice(-576); // two days of the same canonical backstory
 const minutes=minuteBackstory("PML",recent,recent[0].time);
+
+test("pregame price moves require synthetic trade volume; routine bots cannot create event-size jumps",()=>{
+  assert.ok(base.some((bar)=>bar.volume===0));
+  for(const bar of base){
+    if(bar.volume===0)assert.equal(bar.open,bar.close);
+    assert.ok(bar.low<=Math.min(bar.open,bar.close));
+    assert.ok(bar.high>=Math.max(bar.open,bar.close));
+  }
+  assert.equal(botTicketCents(200_000_000,false,0),5_000);
+  assert.equal(botTicketCents(200_000_000,false,.999),29_975);
+  assert.equal(botTicketCents(200_000_000,true,0),500_000);
+  assert.ok(botTicketCents(50_000_000,true,.999)<250_000);
+});
 
 test("five 1-minute candles reproduce their exact 5-minute parent, including fractional volume",()=>{
   assert.equal(minutes.length,recent.length*5);

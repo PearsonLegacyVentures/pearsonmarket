@@ -1,6 +1,6 @@
 import { getGameUser } from "../../../lib/game-auth";
 import { ensureGame, executeTrade, findMarket } from "../../../lib/market-engine";
-import { settleLiquidations } from "../../../lib/perps";
+import { settlePositionExits } from "../../../lib/perps";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const market = await findMarket(symbol);
     if (!market) return Response.json({ error: "Company not found." }, { status: 404 });
     const trade = await executeTrade(user.userId, market, side, units);
-    await settleLiquidations(symbol);
+    await settlePositionExits(symbol);
     return Response.json({ trade });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Trade failed.";

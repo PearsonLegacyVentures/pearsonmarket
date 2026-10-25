@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { companies, eventTemplates, FEE_RATE, reserveCents, STARTING_CASH_CENTS, TICK_MS } from "./market-data";
+import { botTicketCents, companies, eventTemplates, FEE_RATE, reserveCents, STARTING_CASH_CENTS, TICK_MS } from "./market-data";
 import { quote, type Side } from "./amm-math";
 import { UPSERT_MINUTE_CANDLE } from "./chart-sql";
 import { getPositions, markPosition, type PositionRow } from "./perps";
@@ -125,14 +125,12 @@ export async function maybeTick() {
   const market = await db.prepare("SELECT * FROM markets ORDER BY RANDOM() LIMIT 1").first<MarketRow>();
   if (!market) return;
   const up = Math.random() > 0.5;
-  const templates = eventTemplates[market.sector];
-  const choices = up ? templates.up : templates.down;
-  const headline = choices[Math.floor(Math.random() * choices.length)];
-  // These agents have finite cash and finite share holdings. A news item becomes
-  // a real AMM trade; the event does not directly set a target price.
+  const event = Math.random() < .05;
+  // Routine bot orders are small. A rarer, labeled event sends more volume
+  // through the same AMM. Neither path changes the price without a swap.
   const userId = Math.random() > 0.5 ? "BOT_M" : "BOT_C";
   let side: Side = up ? "buy" : "sell";
-  const targetCents = 300_000 + Math.floor(Math.random() * 1_700_000);
+  const targetCents = botTicketCents(market.cash_cents,event,Math.random());
   const player = await db.prepare("SELECT cash_cents FROM players WHERE user_id=?").bind(userId).first<{ cash_cents: number }>();
   const holding = await db.prepare("SELECT shares_micros FROM holdings WHERE user_id=? AND symbol=?")
     .bind(userId, market.symbol).first<{ shares_micros: number }>();
@@ -142,8 +140,12 @@ export async function maybeTick() {
   const units = side === "buy"
     ? Math.min(targetCents, player!.cash_cents)
     : Math.min(holding!.shares_micros, Math.floor(targetCents / spotCents(market) * 1_000_000));
+  const templates = eventTemplates[market.sector];
+  const choices = side === "buy" ? templates.up : templates.down;
+  const headline = event ? choices[Math.floor(Math.random() * choices.length)] : undefined;
   try {
-    await executeTrade(userId, market, side, units, { clockLastTick: clock.last_tick, headline, direction: up ? "up" : "down" });
+    await executeTrade(userId, market, side, units, { clockLastTick: clock.last_tick, headline,
+      direction: side === "buy" ? "up" : "down" });
   } catch {
     // Another viewer may have advanced the same tick; their transaction wins.
   }

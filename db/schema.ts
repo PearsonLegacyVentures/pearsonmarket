@@ -83,11 +83,14 @@ export const positions = sqliteTable("positions", {
   entryFeeCents: integer("entry_fee_cents").notNull(),
   entryPriceCents: integer("entry_price_cents").notNull(),
   quantityMicros: integer("quantity_micros").notNull(),
+  takeProfitCents: integer("take_profit_cents"),
+  stopLossCents: integer("stop_loss_cents"),
   status: text("status").notNull().default("OPEN"),
   openedAt: integer("opened_at").notNull(),
   closedAt: integer("closed_at"),
   exitPriceCents: integer("exit_price_cents"),
   realizedPnlCents: integer("realized_pnl_cents"),
+  closeReason: text("close_reason"),
 });
 
 // A failed guard check rolls back the entire D1 batch.
