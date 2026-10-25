@@ -33,7 +33,7 @@ Vinext (React/Next-compatible), TypeScript, Cloudflare Workers/D1, Drizzle migra
 
 1. In your Cloudflare account, create a D1 database named `pearson-market` and copy its database UUID. For example, run `pnpm wrangler d1 create pearson-market` after logging into Wrangler.
 2. Connect this GitHub repository to **Workers Builds**. Set the Worker name to `pearson-market` (or set `PEARSON_WORKER_NAME` to the name of an existing Worker), Node.js 22.13 or newer, the build command to `pnpm run build:cloudflare`, and the deploy command to `pnpm run deploy:cloudflare`.
-3. Add build variable `PEARSON_D1_DATABASE_ID` with the D1 UUID. The build refuses the private Site's placeholder UUID. The deploy command applies all pending migrations to **that** D1 database before publishing the Worker.
+3. Add build variable `PEARSON_D1_DATABASE_ID` with the D1 UUID. The build refuses the private Site's placeholder UUID. The deploy command applies all pending migrations to **that** D1 database before publishing the Worker. Select a Workers Builds API token with **D1 Edit** and Worker deployment access; Cloudflare's automatically generated build token may lack D1 access, which would make the migration step fail.
 4. Test the resulting `workers.dev` URL before moving a custom domain. The Worker gives each browser a guest wallet with US$1,000 virtual cash; it never trusts ChatGPT identity headers sent by visitors. The private Sites preview continues to use its own ChatGPT sign-in and D1 data.
 
 Guest wallets are tied to an HTTP-only cookie for 120 days. Clearing it or using another browser creates a fresh wallet. For a graded classroom season, add roster-backed accounts and a season reset before inviting students.
